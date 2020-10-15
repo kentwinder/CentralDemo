@@ -51,6 +51,8 @@ open class DefaultArticlesListViewModel: ArticlesListViewModel {
 // MARK: - Input
 extension DefaultArticlesListViewModel {
     func searchArticles(with keyword: String) {
+        guard !keyword.isEmpty else { return }
+        
         currentPage = 1
         currentKeyword = keyword
         hasMore = true
