@@ -37,6 +37,12 @@ class ArticlesListViewController: UIViewController {
             guard let self = self else { return }
             self.tableView.reloadData()
         }).disposed(by: disposeBag)
+        viewModel.indexPathsToInsert.drive(onNext: { [weak self] (indexPaths) in
+            guard let self = self else { return }
+            self.tableView.beginUpdates()
+            self.tableView.insertRows(at: indexPaths, with: .fade)
+            self.tableView.endUpdates()
+        }).disposed(by: disposeBag)
     }
 }
 

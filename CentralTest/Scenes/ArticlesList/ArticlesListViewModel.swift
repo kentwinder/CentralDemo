@@ -14,6 +14,7 @@ protocol ArticlesListViewModelInput {
 }
 
 protocol ArticlesListViewModelOutput {
+    var indexPathsToInsert: Driver<[IndexPath]> { get }
     var reloadData: Driver<Void> { get }
     func numberOfArticles() -> Int
     func articleForCellAt(indexPath: IndexPath) -> Article
@@ -25,17 +26,22 @@ protocol ArticlesListViewModel: ArticlesListViewModelInput, ArticlesListViewMode
 open class DefaultArticlesListViewModel: ArticlesListViewModel {
     private let articleManager: ArticleManager
     
+    private var indexPathsToInsertRelay = BehaviorRelay<[IndexPath]>(value: [])
     private let _reloadData = PublishSubject<Void>()
     private var articles: [Article] = []
     private var hasMore = false
     private var currentKeyword = ""
     private var currentPage = 1
+    private var gettingData = false
     
     init(articleManager: ArticleManager) {
         self.articleManager = articleManager
     }
     
     // MARK: - Output
+    var indexPathsToInsert: Driver<[IndexPath]> {
+        return indexPathsToInsertRelay.asDriver()
+    }
     var reloadData: Driver<Void> {
         return _reloadData.asDriver(onErrorJustReturn: ())
     }
@@ -57,6 +63,7 @@ extension DefaultArticlesListViewModel {
         currentKeyword = keyword
         hasMore = true
         articles.removeAll()
+        _reloadData.onNext(()) // remove all current rows in view
         getArticles()
     }
     
@@ -68,21 +75,34 @@ extension DefaultArticlesListViewModel {
     }
     
     private func getArticles() {
+        guard !gettingData else { return }
+        
+        gettingData = true
         articleManager.getArticles(keyword: currentKeyword, page: currentPage, completion: { [weak self] (result) in
             guard let self = self else { return }
             
             switch result {
             case .success(let response):
-                self.articles.append(contentsOf: response.articles ?? [])
+                let _articles = response.articles ?? []
+                if _articles.count > 0 {
+                    var indexPaths: [IndexPath] = []
+                    for article in _articles {
+                        indexPaths.append(IndexPath(row: self.articles.count, section: 0))
+                        self.articles.append(article)
+                    }
+                    self.indexPathsToInsertRelay.accept(indexPaths)
+                }
+                
                 if self.articles.count >= response.totalResults ?? 0 {
                     self.hasMore = false
                 }
-                self._reloadData.onNext(())
                 break
             case .failure(let error):
                 debugPrint("Get articles failed with error: ", error.message)
                 break
             }
+            
+            self.gettingData = false
         })
     }
 }

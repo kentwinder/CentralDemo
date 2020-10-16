@@ -23,11 +23,20 @@ class ArticleTableViewCell: UITableViewCell {
     }
     
     private func updateViews() {
-        let url = URL(string: article.urlToImage ?? "")
-        articleImageView.kf.setImage(with: url, placeholder: UIImage(named: "ic_news"))
-        
         articleTitleLabel.text = article.title
         articleDescriptionLabel.text = article.description
         timeLabel.text = "Published at: \(DateTimeHelper.displayedDate(from: article.publishedAt ?? ""))"
+        
+        // download image
+        let url = URL(string: article.urlToImage ?? "")
+        articleImageView.kf.setImage(with: url,
+                                     placeholder: UIImage(named: "ic_news"),
+                                     options: nil) { (_, _) in
+            self.articleImageView.alpha = 0
+        } completionHandler: { (_) in
+            UIView.animate(withDuration: 1) {
+                self.articleImageView.alpha = 1
+            }
+        }
     }
 }
